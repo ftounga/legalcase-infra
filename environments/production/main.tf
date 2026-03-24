@@ -81,3 +81,53 @@ module "s3" {
 
   tags = local.common_tags
 }
+
+# Rôle IRSA pour le backend — accès S3 via le service account K8s
+locals {
+  oidc_issuer = replace(data.terraform_remote_state.cluster.outputs.oidc_issuer_url, "https://", "")
+}
+
+resource "aws_iam_role" "backend_irsa" {
+  name = "${var.project}-backend-${local.environment}-s3-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = data.terraform_remote_state.cluster.outputs.oidc_provider_arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${local.oidc_issuer}:sub" = "system:serviceaccount:${local.environment}:${var.project}-backend"
+          "${local.oidc_issuer}:aud" = "sts.amazonaws.com"
+        }
+      }
+    }]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy" "backend_s3" {
+  name = "${var.project}-backend-${local.environment}-s3-policy"
+  role = aws_iam_role.backend_irsa.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ]
+      Resource = [
+        "arn:aws:s3:::${module.s3.bucket_id}",
+        "arn:aws:s3:::${module.s3.bucket_id}/*"
+      ]
+    }]
+  })
+}

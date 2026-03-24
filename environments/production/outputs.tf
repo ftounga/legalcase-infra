@@ -14,6 +14,11 @@ output "s3_bucket_name" {
   value       = module.s3.bucket_id
 }
 
+output "irsa_backend_role_arn" {
+  description = "ARN of the IRSA role for the backend (S3 access)"
+  value       = aws_iam_role.backend_irsa.arn
+}
+
 # Re-exposed from shared cluster
 output "eks_cluster_name" {
   description = "EKS cluster name (shared)"
