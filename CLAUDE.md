@@ -22,7 +22,7 @@ Il est **séparé** du repo applicatif `legalCase` (Dockerfiles, K8s manifests, 
 | Stockage | S3 AWS |
 | Registry | ECR |
 | Secrets | AWS Secrets Manager |
-| IaC | Terraform >= 1.7 |
+| IaC | Terraform >= 1.3.0 (1.3.7 installé) |
 | State | S3 backend + DynamoDB lock |
 
 ---
