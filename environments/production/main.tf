@@ -91,3 +91,71 @@ module "backup" {
 
   tags = local.common_tags
 }
+
+# ─── Backend IRSA — accès S3 documents ───────────────────────────────────────
+data "aws_eks_cluster" "main" {
+  name = data.terraform_remote_state.cluster.outputs.eks_cluster_name
+}
+
+data "aws_iam_openid_connect_provider" "eks" {
+  url = data.aws_eks_cluster.main.identity[0].oidc[0].issuer
+}
+
+locals {
+  oidc_issuer = replace(data.aws_iam_openid_connect_provider.eks.url, "https://", "")
+  s3_bucket_arn = "arn:aws:s3:::${var.project}-${local.environment}-documents-${data.aws_caller_identity.current.account_id}"
+}
+
+data "aws_iam_policy_document" "backend_irsa_assume_role" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Federated"
+      identifiers = [data.aws_iam_openid_connect_provider.eks.arn]
+    }
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer}:sub"
+      values   = ["system:serviceaccount:${local.environment}:legalcase-backend"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "backend_irsa" {
+  name               = "${var.project}-backend-${local.environment}-s3-role"
+  assume_role_policy = data.aws_iam_policy_document.backend_irsa_assume_role.json
+  tags               = local.common_tags
+}
+
+resource "aws_iam_role_policy" "backend_s3" {
+  name = "${var.project}-backend-${local.environment}-s3-policy"
+  role = aws_iam_role.backend_irsa.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListBucket",
+      ]
+      Resource = [
+        local.s3_bucket_arn,
+        "${local.s3_bucket_arn}/*",
+      ]
+    }]
+  })
+}
+
+output "irsa_backend_role_arn" {
+  description = "ARN of the IAM role for backend S3 access via IRSA"
+  value       = aws_iam_role.backend_irsa.arn
+}
