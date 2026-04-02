@@ -34,8 +34,8 @@ output "node_group_name" {
 }
 
 output "node_security_group_id" {
-  description = "Security group ID for EKS worker nodes"
-  value       = aws_security_group.eks_nodes.id
+  description = "Security group ID for EKS worker nodes (EKS cluster SG, attached to all managed node ENIs)"
+  value       = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
 }
 
 output "cluster_security_group_id" {
