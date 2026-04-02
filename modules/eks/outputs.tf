@@ -42,3 +42,8 @@ output "cluster_security_group_id" {
   description = "Security group ID for EKS cluster"
   value       = aws_security_group.eks_cluster.id
 }
+
+output "cluster_autoscaler_role_arn" {
+  description = "ARN of the IAM role for Cluster Autoscaler IRSA"
+  value       = aws_iam_role.cluster_autoscaler.arn
+}

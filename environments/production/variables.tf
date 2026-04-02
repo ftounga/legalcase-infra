@@ -31,5 +31,5 @@ variable "db_max_allocated_storage" {
 variable "s3_allowed_origins" {
   description = "Allowed CORS origins for the documents S3 bucket"
   type        = list(string)
-  default     = ["*"]
+  default     = ["https://legalcase.ng-itconsulting.com"]
 }

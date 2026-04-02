@@ -81,3 +81,13 @@ module "s3" {
 
   tags = local.common_tags
 }
+
+module "backup" {
+  source = "../../modules/backup"
+
+  project               = var.project
+  environment           = local.environment
+  backup_retention_days = 7
+
+  tags = local.common_tags
+}
