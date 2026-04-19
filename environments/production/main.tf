@@ -131,3 +131,21 @@ resource "aws_iam_role_policy" "backend_s3" {
     }]
   })
 }
+
+# F-122 / SF-122-01 : accès AWS Textract pour l'OCR des PDF scannés.
+# Seul AnalyzeDocument est nécessaire en V1 (mode sync TABLES + FORMS).
+resource "aws_iam_role_policy" "backend_textract" {
+  name = "${var.project}-backend-${local.environment}-textract-policy"
+  role = aws_iam_role.backend_irsa.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "textract:AnalyzeDocument"
+      ]
+      Resource = "*"
+    }]
+  })
+}
