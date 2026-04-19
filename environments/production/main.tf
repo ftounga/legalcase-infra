@@ -102,7 +102,7 @@ data "aws_iam_openid_connect_provider" "eks" {
 }
 
 locals {
-  oidc_issuer = replace(data.aws_iam_openid_connect_provider.eks.url, "https://", "")
+  oidc_issuer   = replace(data.aws_iam_openid_connect_provider.eks.url, "https://", "")
   s3_bucket_arn = "arn:aws:s3:::${var.project}-${local.environment}-documents-${data.aws_caller_identity.current.account_id}"
 }
 
@@ -151,6 +151,21 @@ resource "aws_iam_role_policy" "backend_s3" {
         local.s3_bucket_arn,
         "${local.s3_bucket_arn}/*",
       ]
+    }]
+  })
+}
+
+# F-122 / SF-122-01 : accès AWS Textract pour l'OCR des PDF scannés.
+resource "aws_iam_role_policy" "backend_textract" {
+  name = "${var.project}-backend-${local.environment}-textract-policy"
+  role = aws_iam_role.backend_irsa.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["textract:AnalyzeDocument"]
+      Resource = "*"
     }]
   })
 }
