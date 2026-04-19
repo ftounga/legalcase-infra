@@ -83,8 +83,16 @@ module "s3" {
 }
 
 # Rôle IRSA pour le backend — accès S3 via le service account K8s
+data "aws_eks_cluster" "main" {
+  name = data.terraform_remote_state.cluster.outputs.eks_cluster_name
+}
+
+data "aws_iam_openid_connect_provider" "eks" {
+  url = data.aws_eks_cluster.main.identity[0].oidc[0].issuer
+}
+
 locals {
-  oidc_issuer = replace(data.terraform_remote_state.cluster.outputs.oidc_issuer_url, "https://", "")
+  oidc_issuer = replace(data.aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://", "")
 }
 
 resource "aws_iam_role" "backend_irsa" {
@@ -95,7 +103,7 @@ resource "aws_iam_role" "backend_irsa" {
     Statement = [{
       Effect = "Allow"
       Principal = {
-        Federated = data.terraform_remote_state.cluster.outputs.oidc_provider_arn
+        Federated = data.aws_iam_openid_connect_provider.eks.arn
       }
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
