@@ -23,7 +23,7 @@ variable "database_subnet_cidrs" {
 }
 
 variable "kubernetes_version" {
-  default = "1.31"
+  default = "1.34"
 }
 
 variable "node_instance_type" {
@@ -31,11 +31,11 @@ variable "node_instance_type" {
 }
 
 variable "node_desired_size" {
-  default = 2
+  default = 3
 }
 
 variable "node_min_size" {
-  default = 2
+  default = 3
 }
 
 variable "node_max_size" {

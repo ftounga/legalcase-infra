@@ -162,6 +162,7 @@ resource "aws_eks_node_group" "main" {
   node_group_name = "${var.project}-${var.environment}-ng"
   node_role_arn   = aws_iam_role.eks_node_group.arn
   subnet_ids      = var.private_subnet_ids
+  version         = aws_eks_cluster.main.version
 
   instance_types = [var.node_instance_type]
 
@@ -176,7 +177,7 @@ resource "aws_eks_node_group" "main" {
   }
 
   tags = merge(var.tags, {
-    "k8s.io/cluster-autoscaler/enabled"                       = "true"
+    "k8s.io/cluster-autoscaler/enabled"                      = "true"
     "k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}" = "owned"
   })
 
@@ -248,9 +249,21 @@ resource "aws_iam_role_policy_attachment" "cluster_autoscaler" {
 }
 
 # ─── EKS Add-ons ──────────────────────────────────────────────────────────────
+# La version de chaque add-on est résolue automatiquement pour la version K8s
+# du cluster — elle suit donc les upgrades de cluster sans intervention manuelle.
+data "aws_eks_addon_version" "this" {
+  for_each = toset(["vpc-cni", "coredns", "kube-proxy", "aws-ebs-csi-driver"])
+
+  addon_name         = each.key
+  kubernetes_version = aws_eks_cluster.main.version
+  most_recent        = true
+}
+
 resource "aws_eks_addon" "vpc_cni" {
-  cluster_name = aws_eks_cluster.main.name
-  addon_name   = "vpc-cni"
+  cluster_name                = aws_eks_cluster.main.name
+  addon_name                  = "vpc-cni"
+  addon_version               = data.aws_eks_addon_version.this["vpc-cni"].version
+  resolve_conflicts_on_update = "OVERWRITE"
 
   tags = var.tags
 
@@ -258,8 +271,10 @@ resource "aws_eks_addon" "vpc_cni" {
 }
 
 resource "aws_eks_addon" "coredns" {
-  cluster_name = aws_eks_cluster.main.name
-  addon_name   = "coredns"
+  cluster_name                = aws_eks_cluster.main.name
+  addon_name                  = "coredns"
+  addon_version               = data.aws_eks_addon_version.this["coredns"].version
+  resolve_conflicts_on_update = "OVERWRITE"
 
   tags = var.tags
 
@@ -267,8 +282,10 @@ resource "aws_eks_addon" "coredns" {
 }
 
 resource "aws_eks_addon" "kube_proxy" {
-  cluster_name = aws_eks_cluster.main.name
-  addon_name   = "kube-proxy"
+  cluster_name                = aws_eks_cluster.main.name
+  addon_name                  = "kube-proxy"
+  addon_version               = data.aws_eks_addon_version.this["kube-proxy"].version
+  resolve_conflicts_on_update = "OVERWRITE"
 
   tags = var.tags
 
@@ -276,9 +293,11 @@ resource "aws_eks_addon" "kube_proxy" {
 }
 
 resource "aws_eks_addon" "ebs_csi_driver" {
-  cluster_name             = aws_eks_cluster.main.name
-  addon_name               = "aws-ebs-csi-driver"
-  service_account_role_arn = aws_iam_role.ebs_csi_driver.arn
+  cluster_name                = aws_eks_cluster.main.name
+  addon_name                  = "aws-ebs-csi-driver"
+  addon_version               = data.aws_eks_addon_version.this["aws-ebs-csi-driver"].version
+  service_account_role_arn    = aws_iam_role.ebs_csi_driver.arn
+  resolve_conflicts_on_update = "OVERWRITE"
 
   tags = var.tags
 

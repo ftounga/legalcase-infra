@@ -17,7 +17,7 @@ Il est **séparé** du repo applicatif `legalCase` (Dockerfiles, K8s manifests, 
 | Composant | Choix |
 |-----------|-------|
 | Cloud | AWS eu-west-3 (Paris) |
-| Compute | EKS 1.31 — node group t3.medium |
+| Compute | EKS 1.34 — node group t3.medium |
 | Base de données | RDS PostgreSQL 16 |
 | Stockage | S3 AWS |
 | Registry | ECR |
