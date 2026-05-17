@@ -59,7 +59,7 @@ resource "aws_eks_cluster" "main" {
     endpoint_public_access  = true
   }
 
-  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+  enabled_cluster_log_types = ["api", "authenticator"]
 
   tags = var.tags
 
