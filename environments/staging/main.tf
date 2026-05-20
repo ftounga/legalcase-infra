@@ -98,6 +98,23 @@ module "monitoring" {
   tags = local.common_tags
 }
 
+module "cdn" {
+  source = "../../modules/cdn"
+
+  project                        = var.project
+  environment                    = local.environment
+  s3_bucket_id                   = module.s3.bucket_id
+  s3_bucket_arn                  = module.s3.bucket_arn
+  s3_bucket_regional_domain_name = module.s3.bucket_regional_domain_name
+
+  tags = local.common_tags
+}
+
+output "cdn_domain_name" {
+  description = "CloudFront domain serving S3 documents (to plug in CLOUDFRONT_DOMAIN env var of legalcase-backend)"
+  value       = module.cdn.distribution_domain_name
+}
+
 # ─── Backend IRSA — accès S3 + Textract ──────────────────────────────────────
 # Les outputs oidc_issuer_url / oidc_provider_arn du cluster state n'étant pas
 # encore présents (cluster pas re-apply depuis leur ajout), on lit directement
