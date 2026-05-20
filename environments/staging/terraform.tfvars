@@ -8,3 +8,6 @@ db_max_allocated_storage = 50
 
 # S3
 s3_allowed_origins = ["*"]
+
+# Monitoring
+alert_email = "tounga.franck@ng-itconsulting.com"

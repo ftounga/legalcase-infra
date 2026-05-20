@@ -92,6 +92,21 @@ module "backup" {
   tags = local.common_tags
 }
 
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  project         = var.project
+  environment     = local.environment
+  alert_email     = var.alert_email
+  rds_instance_id = module.rds.db_instance_id
+
+  # Budget AWS désactivé — l'utilisateur gère ses budgets manuellement
+  # (3 budgets EUR 400/600/800 déjà en place dans la console AWS Billing).
+  enable_budget = false
+
+  tags = local.common_tags
+}
+
 # ─── Backend IRSA — accès S3 documents ───────────────────────────────────────
 data "aws_eks_cluster" "main" {
   name = data.terraform_remote_state.cluster.outputs.eks_cluster_name

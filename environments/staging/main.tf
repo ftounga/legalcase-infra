@@ -82,6 +82,22 @@ module "s3" {
   tags = local.common_tags
 }
 
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  project                   = var.project
+  environment               = local.environment
+  alert_email               = var.alert_email
+  rds_instance_id           = module.rds.db_instance_id
+  rds_connections_threshold = 50
+
+  # Budget global au compte AWS : provisionné seulement par production
+  # pour éviter les doublons.
+  enable_budget = false
+
+  tags = local.common_tags
+}
+
 # ─── Backend IRSA — accès S3 + Textract ──────────────────────────────────────
 # Les outputs oidc_issuer_url / oidc_provider_arn du cluster state n'étant pas
 # encore présents (cluster pas re-apply depuis leur ajout), on lit directement
