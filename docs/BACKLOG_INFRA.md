@@ -25,12 +25,12 @@ Conventions :
 | SF-INFRA-03 | Module `cdn/` — CloudFront devant S3 documents + Origin Access Control + bucket policy | Appliquée 2026-05-20 — staging `d2oaldre5efpif.cloudfront.net` déployé, prod en cours | 6 h | ~0-2 $ (Free Tier 12 mois) | ✅ Fait |
 | SF-INFRA-04 | Cleanup `environments/*/terraform.tfvars` — supprimer `kubernetes_version` (mort code depuis migration vers `cluster/` shared) | Appliquée 2026-05-20 — `terraform plan staging = No changes` confirmé | 5 min | 0 $ | ✅ Fait |
 
-## Suite envisagée (créer SF à venir)
+## Suite envisagée
 
 | ID | Titre | Statut | Notes |
 |----|-------|--------|-------|
-| SF-INFRA-05 (à créer) | Réduire rétention logs CloudWatch control plane EKS de 14j à 7j | À faire | Économie ~$5/mois |
-| SF-INFRA-06 (à créer) | Audit EBS snapshots manuels (RabbitMQ PVC + RDS) — purger les > 7j | À faire | Économie ~$5-15/mois selon historique |
+| SF-INFRA-05 | Rétention logs CloudWatch EKS 14j → 7j + cleanup log group orphelin staging | Appliquée 2026-05-20 — IaC dans module EKS, économie ~-$0,60-1,25/mois | ✅ Fait |
+| SF-INFRA-06 | Audit EBS snapshots manuels (RabbitMQ PVC + RDS) | Audit 2026-05-20 — backup plan sain, 14 snapshots conformes (2 vol × 7j rétention), 0 snapshot orphelin, économie marginale rien à purger | ✅ Audité |
 | SF-INFRA-07 (à créer côté repo legalCase) | Déployer Fluent Bit DaemonSet sur EKS pour shipper les logs Spring Boot vers CloudWatch Logs + ajouter alarme `backend ERROR rate` côté infra | À faire | ~3-4 h. Pré-requis pour retirer Sentry complètement. |
 | SF-INFRA-08 (à créer côté repo legalCase) | Brancher CloudFront côté backend Spring Boot (`CLOUDFRONT_DOMAIN` env var) pour générer les URLs de téléchargement via le CDN au lieu de S3 direct | À faire | ~2 h backend + 30 min K8s configmap |
 
@@ -46,3 +46,4 @@ Conventions :
 |------|-----------|
 | 2026-05-20 | Création du backlog. Inclus SF-INFRA-01 à 04. Décisions explicites : RabbitMQ cluster et Redis non retenus à ce stade. |
 | 2026-05-20 | SF-INFRA-01, 02, 03, 04 appliquées. Audit Cost Explorer mai 2026 effectué : EKS extended support encore actif 1-14/05 ($156 facturé), terminé le 16/05. À régime stable (juin onwards) : ~$412/mois TTC vs $815/mois en avril — économie $400/mois. SF-INFRA-05 à 08 identifiées comme bonus à venir. |
+| 2026-05-20 | SF-INFRA-05 appliquée : rétention log group EKS 14j→7j (IaC dans `modules/eks/`), log group orphelin staging supprimé. SF-INFRA-06 audit effectué : 14 snapshots EBS tous issus du backup plan AWS, 0 orphelin, rien à purger. |

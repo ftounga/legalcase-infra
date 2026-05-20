@@ -46,6 +46,17 @@ resource "aws_security_group" "eks_cluster" {
   })
 }
 
+# ─── CloudWatch Log Group — EKS control plane ─────────────────────────────────
+# EKS crée le log group automatiquement lors de l'activation des
+# enabled_cluster_log_types. On le déclare explicitement en amont pour
+# (a) maîtriser la rétention (default AWS = "Never expire") et
+# (b) garder la ressource sous Terraform (cf. SF-INFRA-05 import historique).
+resource "aws_cloudwatch_log_group" "eks_cluster" {
+  name              = "/aws/eks/${var.project}-${var.environment}/cluster"
+  retention_in_days = var.cluster_logs_retention_days
+  tags              = var.tags
+}
+
 # ─── EKS Cluster ──────────────────────────────────────────────────────────────
 resource "aws_eks_cluster" "main" {
   name     = "${var.project}-${var.environment}"
@@ -66,6 +77,7 @@ resource "aws_eks_cluster" "main" {
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,
     aws_iam_role_policy_attachment.eks_vpc_resource_controller,
+    aws_cloudwatch_log_group.eks_cluster,
   ]
 }
 

@@ -50,6 +50,12 @@ variable "node_max_size" {
   type        = number
 }
 
+variable "cluster_logs_retention_days" {
+  description = "Retention in days for the EKS control plane CloudWatch log group"
+  type        = number
+  default     = 7
+}
+
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
