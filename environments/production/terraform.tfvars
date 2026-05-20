@@ -15,7 +15,7 @@ node_min_size      = 2
 node_max_size      = 4
 
 # RDS
-db_instance_class        = "db.t3.micro"
+db_instance_class        = "db.t4g.small"
 db_allocated_storage     = 50
 db_max_allocated_storage = 200
 
