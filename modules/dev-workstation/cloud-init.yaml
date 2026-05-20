@@ -1,0 +1,194 @@
+#cloud-config
+# Provisioning of the LegalCase dev workstation.
+# See modules/dev-workstation/README.md for the full procedure.
+# ASCII-only on purpose: some cloud-init versions reject non-ASCII bytes in user-data.
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - apt-transport-https
+  - build-essential
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+  - htop
+  - jq
+  - lsb-release
+  - software-properties-common
+  - tmux
+  - unzip
+  - vim
+
+write_files:
+  - path: /etc/dev-bootstrap.env
+    permissions: "0644"
+    owner: root:root
+    content: |
+      LINUX_USER=${linux_user}
+      GIT_USER_NAME=${git_user_name}
+      GIT_USER_EMAIL=${git_user_email}
+      GITHUB_SECRET_ID=${secret_id}
+      AWS_REGION=${region}
+      AWS_CLI_PROFILE=${aws_cli_profile}
+      REPOS_TO_CLONE="${join(" ", repos_to_clone)}"
+
+  - path: /home/${linux_user}/.aws/config
+    permissions: "0644"
+    owner: ${linux_user}:${linux_user}
+    defer: true
+    content: |
+      [default]
+      region = ${region}
+      credential_source = Ec2InstanceMetadata
+
+      [profile ${aws_cli_profile}]
+      region = ${region}
+      credential_source = Ec2InstanceMetadata
+
+  - path: /usr/local/bin/dev-bootstrap.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      set -x
+
+      # shellcheck disable=SC1091
+      source /etc/dev-bootstrap.env
+
+      HOME_DIR="/home/$${LINUX_USER}"
+      RUN_AS_USER="sudo -u $${LINUX_USER} -H"
+
+      # 1. AWS CLI v2 (needed first to pull the GitHub PAT)
+      if ! command -v aws >/dev/null 2>&1; then
+        cd /tmp
+        curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+        unzip -q awscliv2.zip
+        ./aws/install
+        rm -rf aws awscliv2.zip
+      fi
+
+      # 2. Pull GitHub PAT from Secrets Manager
+      GITHUB_JSON="$(aws secretsmanager get-secret-value \
+        --region "$${AWS_REGION}" \
+        --secret-id "$${GITHUB_SECRET_ID}" \
+        --query SecretString --output text 2>/dev/null || echo '')"
+
+      if [ -n "$${GITHUB_JSON}" ]; then
+        GITHUB_TOKEN="$(echo "$${GITHUB_JSON}" | jq -r '.github_token // empty')"
+        GITHUB_USER="$(echo "$${GITHUB_JSON}" | jq -r '.github_user // empty')"
+      else
+        GITHUB_TOKEN=""
+        GITHUB_USER=""
+        echo "WARN: Secrets Manager secret '$${GITHUB_SECRET_ID}' is empty - git/gh not configured. Populate the secret then re-run /usr/local/bin/dev-bootstrap.sh"
+      fi
+
+      # 3. Java 21 (Eclipse Temurin) + Maven repo
+      install -d -m 0755 /etc/apt/keyrings
+      curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public \
+        | gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg
+      echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(lsb_release -cs) main" \
+        > /etc/apt/sources.list.d/adoptium.list
+
+      # 4. Node.js 20 (NodeSource)
+      curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+      echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
+        > /etc/apt/sources.list.d/nodesource.list
+
+      # 5. Docker
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+        > /etc/apt/sources.list.d/docker.list
+
+      # 6. HashiCorp (Terraform)
+      curl -fsSL https://apt.releases.hashicorp.com/gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/hashicorp.gpg
+      echo "deb [signed-by=/etc/apt/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+        > /etc/apt/sources.list.d/hashicorp.list
+
+      # 7. GitHub CLI
+      curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/githubcli.gpg
+      echo "deb [signed-by=/etc/apt/keyrings/githubcli.gpg] https://cli.github.com/packages stable main" \
+        > /etc/apt/sources.list.d/github-cli.list
+
+      apt-get update -y
+      DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        temurin-21-jdk \
+        maven \
+        nodejs \
+        docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin \
+        terraform \
+        gh
+
+      # 8. kubectl
+      KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)"
+      curl -fsSL "https://dl.k8s.io/release/$${KUBECTL_VERSION}/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl
+      chmod +x /usr/local/bin/kubectl
+
+      # 9. helm
+      curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      # 10. Claude Code CLI
+      npm install -g @anthropic-ai/claude-code
+
+      # 11. Docker access for dev user
+      usermod -aG docker "$${LINUX_USER}"
+
+      # 12. User-level configuration (git, gh, repos)
+      install -d -o "$${LINUX_USER}" -g "$${LINUX_USER}" -m 0755 "$${HOME_DIR}/dev"
+
+      $${RUN_AS_USER} git config --global user.name "$${GIT_USER_NAME}"
+      $${RUN_AS_USER} git config --global user.email "$${GIT_USER_EMAIL}"
+      $${RUN_AS_USER} git config --global init.defaultBranch master
+      $${RUN_AS_USER} git config --global pull.rebase false
+
+      if [ -n "$${GITHUB_TOKEN}" ]; then
+        # Configure git credential store directly: works with any PAT that has 'repo' scope,
+        # independently of whether gh CLI can authenticate (gh requires 'read:org' too).
+        echo "https://$${GITHUB_USER}:$${GITHUB_TOKEN}@github.com" > "$${HOME_DIR}/.git-credentials"
+        chown "$${LINUX_USER}:$${LINUX_USER}" "$${HOME_DIR}/.git-credentials"
+        chmod 600 "$${HOME_DIR}/.git-credentials"
+        $${RUN_AS_USER} git config --global credential.helper store
+
+        # gh CLI auth: best-effort. Fails silently if the PAT lacks 'read:org'.
+        # Run `gh auth login` interactively in that case.
+        if echo "$${GITHUB_TOKEN}" | $${RUN_AS_USER} gh auth login --with-token 2>/dev/null; then
+          $${RUN_AS_USER} gh auth setup-git
+          echo "gh CLI authenticated."
+        else
+          echo "WARN: gh auth login failed (PAT probably missing 'read:org' scope). Git ops work via credential store; run 'gh auth login' interactively if you need gh."
+        fi
+
+        for repo_url in $${REPOS_TO_CLONE}; do
+          repo_name="$(basename "$${repo_url}" .git)"
+          target_dir="$${HOME_DIR}/dev/$${repo_name}"
+          if [ ! -d "$${target_dir}" ]; then
+            $${RUN_AS_USER} git clone "$${repo_url}" "$${target_dir}"
+          fi
+        done
+      fi
+
+      # 13. Quality of life
+      cat >> "$${HOME_DIR}/.bashrc" <<'EOF'
+
+      # LegalCase dev workstation
+      export AWS_PROFILE=legalcase-terraform
+      alias k=kubectl
+      alias tf=terraform
+      alias dev='cd ~/dev'
+      EOF
+      chown "$${LINUX_USER}:$${LINUX_USER}" "$${HOME_DIR}/.bashrc"
+
+      echo "OK - dev workstation bootstrapped."
+
+runcmd:
+  - install -d -o ${linux_user} -g ${linux_user} -m 0700 /home/${linux_user}/.aws
+  - chown ${linux_user}:${linux_user} /home/${linux_user}/.aws/config
+  - bash /usr/local/bin/dev-bootstrap.sh 2>&1 | tee /var/log/dev-bootstrap.log
+
+final_message: "Dev workstation ready in $UPTIME seconds. Run aws ssm start-session --target <instance-id> to connect."
