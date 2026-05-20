@@ -42,6 +42,18 @@ variable "enable_budget" {
   default     = false
 }
 
+variable "enable_backend_error_alarm" {
+  description = "Provision the backend ERROR rate alarm (requires Fluent Bit shipping application logs to the LegalCase/Application namespace)"
+  type        = bool
+  default     = false
+}
+
+variable "backend_error_rate_threshold" {
+  description = "Number of backend ERROR log lines per 5 minutes above which the alarm fires"
+  type        = number
+  default     = 10
+}
+
 variable "monthly_budget_usd" {
   description = "Monthly budget in USD. Notifications fire at 80% (forecasted) and 100% (actual)."
   type        = number

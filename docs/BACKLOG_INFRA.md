@@ -31,7 +31,8 @@ Conventions :
 |----|-------|--------|-------|
 | SF-INFRA-05 | Rétention logs CloudWatch EKS 14j → 7j + cleanup log group orphelin staging | Appliquée 2026-05-20 — IaC dans module EKS, économie ~-$0,60-1,25/mois | ✅ Fait |
 | SF-INFRA-06 | Audit EBS snapshots manuels (RabbitMQ PVC + RDS) | Audit 2026-05-20 — backup plan sain, 14 snapshots conformes (2 vol × 7j rétention), 0 snapshot orphelin, économie marginale rien à purger | ✅ Audité |
-| SF-INFRA-07 (à créer côté repo legalCase) | Déployer Fluent Bit DaemonSet sur EKS pour shipper les logs Spring Boot vers CloudWatch Logs + ajouter alarme `backend ERROR rate` côté infra | À faire | ~3-4 h. Pré-requis pour retirer Sentry complètement. |
+| SF-INFRA-07a | Infrastructure Fluent Bit (IRSA + log group `applications` + metric filter ERROR + alarme `backend_error_rate`) | Appliquée 2026-05-20 — alarme prod en `INSUFFICIENT_DATA` en attendant Fluent Bit | ✅ Fait |
+| SF-INFRA-07b (repo legalCase) | Manifest K8s DaemonSet `aws-for-fluent-bit` + ConfigMap + SA annoté IRSA dans `k8s/system/` | À faire | ~2 h. Une fois déployé, l'alarme bascule de `INSUFFICIENT_DATA` à `OK`. |
 | SF-INFRA-08 (à créer côté repo legalCase) | Brancher CloudFront côté backend Spring Boot (`CLOUDFRONT_DOMAIN` env var) pour générer les URLs de téléchargement via le CDN au lieu de S3 direct | À faire | ~2 h backend + 30 min K8s configmap |
 
 ## Pas dans ce backlog (décisions explicites)

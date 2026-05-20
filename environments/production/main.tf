@@ -104,6 +104,10 @@ module "monitoring" {
   # (3 budgets EUR 400/600/800 déjà en place dans la console AWS Billing).
   enable_budget = false
 
+  # Alarme backend ERROR rate activée en prod uniquement (Fluent Bit déployé
+  # sur le cluster shared via k8s/system/fluent-bit.yaml — SF-INFRA-07).
+  enable_backend_error_alarm = true
+
   tags = local.common_tags
 }
 

@@ -30,3 +30,13 @@ output "cluster_autoscaler_role_arn" {
   value       = module.eks.cluster_autoscaler_role_arn
   description = "ARN of the IAM role for Cluster Autoscaler — use as CA_IRSA_ROLE_ARN_PLACEHOLDER in k8s/system/cluster-autoscaler.yaml"
 }
+
+output "fluent_bit_role_arn" {
+  value       = module.eks.fluent_bit_role_arn
+  description = "ARN IRSA pour le DaemonSet Fluent Bit (k8s/system/fluent-bit.yaml)"
+}
+
+output "applications_log_group_name" {
+  value       = module.eks.applications_log_group_name
+  description = "Nom du log group CloudWatch pour les logs applicatifs Fluent Bit"
+}

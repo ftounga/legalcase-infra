@@ -349,3 +349,69 @@ resource "aws_iam_role_policy_attachment" "ebs_csi_driver_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
   role       = aws_iam_role.ebs_csi_driver.name
 }
+
+# ─── IRSA — Fluent Bit (CloudWatch logs shipper) ──────────────────────────────
+# SA cible : amazon-cloudwatch/fluent-bit (convention AWS pour le DaemonSet
+# aws-for-fluent-bit). Le manifest K8s correspondant est dans le repo
+# applicatif legalCase, sous k8s/system/fluent-bit.yaml.
+data "aws_iam_policy_document" "fluent_bit_assume_role" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.eks.arn]
+    }
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:amazon-cloudwatch:fluent-bit"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "fluent_bit" {
+  name               = "${var.project}-${var.environment}-fluent-bit-role"
+  assume_role_policy = data.aws_iam_policy_document.fluent_bit_assume_role.json
+  tags               = var.tags
+}
+
+resource "aws_iam_role_policy_attachment" "fluent_bit_cloudwatch" {
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+  role       = aws_iam_role.fluent_bit.name
+}
+
+# ─── CloudWatch Log Group — Application logs (destination Fluent Bit) ─────────
+# Fluent Bit pousse les logs des pods Spring Boot ici. Rétention 7 j par défaut
+# pour limiter le coût (chaque GB ingéré = $0.50). Augmenter via la variable
+# si besoin de forensic plus long.
+resource "aws_cloudwatch_log_group" "applications" {
+  name              = "/aws/eks/${var.project}-${var.environment}/applications"
+  retention_in_days = var.application_logs_retention_days
+  tags              = var.tags
+}
+
+# ─── Metric filter — backend ERROR count ──────────────────────────────────────
+# Matche les lignes de log applicatives contenant le token ERROR.
+# Spring Boot logue par défaut avec pattern "yyyy-MM-dd HH:mm:ss.SSS LEVEL ..."
+# donc ERROR apparaît littéralement dans le texte de la ligne.
+# Métrique exposée en custom namespace LegalCase/Application — alarmée par
+# modules/monitoring/ via aws_cloudwatch_metric_alarm.backend_error_rate.
+resource "aws_cloudwatch_log_metric_filter" "backend_errors" {
+  name           = "${var.project}-${var.environment}-backend-errors"
+  log_group_name = aws_cloudwatch_log_group.applications.name
+  pattern        = "\"ERROR\""
+
+  metric_transformation {
+    name          = "BackendErrors"
+    namespace     = "LegalCase/Application"
+    value         = "1"
+    unit          = "Count"
+    default_value = "0"
+  }
+}
