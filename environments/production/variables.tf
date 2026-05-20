@@ -33,3 +33,14 @@ variable "s3_allowed_origins" {
   type        = list(string)
   default     = ["https://legalcase.ng-itconsulting.com"]
 }
+
+variable "alert_email" {
+  description = "Email address that receives CloudWatch alarms"
+  type        = string
+}
+
+variable "monthly_budget_usd" {
+  description = "Account-wide monthly budget in USD. Notification at 80% (forecasted) and 100% (actual)."
+  type        = number
+  default     = 500
+}

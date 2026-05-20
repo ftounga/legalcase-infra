@@ -92,6 +92,38 @@ module "backup" {
   tags = local.common_tags
 }
 
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  project         = var.project
+  environment     = local.environment
+  alert_email     = var.alert_email
+  rds_instance_id = module.rds.db_instance_id
+
+  # Budget AWS désactivé — l'utilisateur gère ses budgets manuellement
+  # (3 budgets EUR 400/600/800 déjà en place dans la console AWS Billing).
+  enable_budget = false
+
+  tags = local.common_tags
+}
+
+module "cdn" {
+  source = "../../modules/cdn"
+
+  project                        = var.project
+  environment                    = local.environment
+  s3_bucket_id                   = module.s3.bucket_id
+  s3_bucket_arn                  = module.s3.bucket_arn
+  s3_bucket_regional_domain_name = module.s3.bucket_regional_domain_name
+
+  tags = local.common_tags
+}
+
+output "cdn_domain_name" {
+  description = "CloudFront domain serving S3 documents (to plug in CLOUDFRONT_DOMAIN env var of legalcase-backend)"
+  value       = module.cdn.distribution_domain_name
+}
+
 # ─── Backend IRSA — accès S3 documents ───────────────────────────────────────
 data "aws_eks_cluster" "main" {
   name = data.terraform_remote_state.cluster.outputs.eks_cluster_name

@@ -33,3 +33,8 @@ variable "s3_allowed_origins" {
   type        = list(string)
   default     = ["*"]
 }
+
+variable "alert_email" {
+  description = "Email address that receives CloudWatch alarms"
+  type        = string
+}
