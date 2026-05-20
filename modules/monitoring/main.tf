@@ -79,6 +79,31 @@ resource "aws_cloudwatch_metric_alarm" "rds_free_memory_low" {
   tags = var.tags
 }
 
+# ─── Backend ERROR rate (Fluent Bit + CloudWatch log metric filter) ───────────
+# Le metric filter qui alimente la métrique LegalCase/Application:BackendErrors
+# est défini dans modules/eks/ (sur le log group /aws/eks/.../applications).
+# Cette alarme n'est provisionnée que si Fluent Bit ship les logs (toggle
+# enable_backend_error_alarm depuis l'env).
+resource "aws_cloudwatch_metric_alarm" "backend_error_rate" {
+  count = var.enable_backend_error_alarm ? 1 : 0
+
+  alarm_name          = "${var.project}-${var.environment}-backend-error-rate"
+  alarm_description   = "Spring Boot lines containing ERROR above ${var.backend_error_rate_threshold} per 5 min"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  period              = 300
+  statistic           = "Sum"
+  threshold           = var.backend_error_rate_threshold
+  namespace           = "LegalCase/Application"
+  metric_name         = "BackendErrors"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
+
+  tags = var.tags
+}
+
 # ─── AWS Budgets — monthly cost alert ─────────────────────────────────────────
 # Only one env should provision the budget (var.enable_budget = true) to avoid
 # duplicate budgets on the same AWS account.

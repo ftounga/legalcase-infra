@@ -56,6 +56,12 @@ variable "cluster_logs_retention_days" {
   default     = 7
 }
 
+variable "application_logs_retention_days" {
+  description = "Retention in days for application logs (shipped by Fluent Bit from Spring Boot pods)"
+  type        = number
+  default     = 7
+}
+
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)

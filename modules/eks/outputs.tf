@@ -47,3 +47,13 @@ output "cluster_autoscaler_role_arn" {
   description = "ARN of the IAM role for Cluster Autoscaler IRSA"
   value       = aws_iam_role.cluster_autoscaler.arn
 }
+
+output "fluent_bit_role_arn" {
+  description = "ARN of the IAM role for Fluent Bit IRSA — use as FLUENT_BIT_IRSA_ROLE_ARN_PLACEHOLDER in k8s/system/fluent-bit.yaml"
+  value       = aws_iam_role.fluent_bit.arn
+}
+
+output "applications_log_group_name" {
+  description = "Name of the CloudWatch log group for application logs shipped by Fluent Bit"
+  value       = aws_cloudwatch_log_group.applications.name
+}
