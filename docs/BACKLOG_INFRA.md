@@ -41,6 +41,22 @@ Conventions :
 - **Redis / ElastiCache** — pas nécessaire au volume actuel. Prompt caching Anthropic (F-142-04) déjà acquis (-85 % prefill). À reconsidérer si > 200 dossiers/jour ou si pattern d'accès dashboard répétitif émerge.
 - **Container Insights / Prometheus / Grafana** — sur-engineered au stade actuel. Les 4 alarmes CloudWatch + AWS Cost Anomaly Detection + Sentry remplacé par CloudWatch Logs metric filters suffisent.
 
+## Afrique OHADA — HYPOTHÈSE (gelé, HORS backlog actif)
+
+> ⚠️ **Ne pas confondre avec le backlog actif eu-west-3.** Specs de provisioning de l'instance régionale
+> Afrique (`af-south-1`), **gelées** tant que le verrou d'activation OHADA n'est pas levé (cf. repo `legalCase`
+> → `docs/afrique/CADRAGE-STRATEGIQUE-OHADA.md`). **Aucun `terraform apply`.** Détail : `docs/afrique/`.
+
+| ID | Objet | Module | Statut |
+|----|-------|--------|--------|
+| SF-INFRA-AF-01 | Networking `af-south-1` | `networking` | 🔒 Gelé (verrou) |
+| SF-INFRA-AF-02 | Cluster EKS Afrique (staging+prod namespaces) | `eks` | 🔒 Gelé (verrou) |
+| SF-INFRA-AF-03 | RDS PostgreSQL régional (résidence D9) | `rds` | 🔒 Gelé (verrou) |
+| SF-INFRA-AF-04 | S3 documents + backups régionaux | `s3`,`backup` | 🔒 Gelé (verrou) |
+| SF-INFRA-AF-05 | CloudFront + ACM, `legalcase.africa` | `cdn` | 🔒 Gelé (verrou) |
+| SF-INFRA-AF-06 | ECR (réplication) + Secrets régionaux | `ecr` | 🔒 Gelé (verrou) |
+| SF-INFRA-AF-07 | Monitoring + logs régionaux | `monitoring` | 🔒 Gelé (verrou) |
+
 ## Historique
 
 | Date | Évolution |
