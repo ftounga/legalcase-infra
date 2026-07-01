@@ -97,6 +97,38 @@ resource "aws_iam_role_policy" "cg_backend_textract" {
   })
 }
 
+# BYOK — chiffrement des clés API utilisateur (F-03, OQ-06 tranchée : AWS KMS envelope encryption).
+resource "aws_kms_key" "cg_byok" {
+  description             = "claude-gateway ${local.environment} — chiffrement des clés API BYOK utilisateur (envelope encryption)"
+  deletion_window_in_days = 14
+  enable_key_rotation     = true
+  tags                    = merge(local.common_tags, { App = "claude-gateway" })
+}
+
+resource "aws_kms_alias" "cg_byok" {
+  name          = "alias/claude-gateway-${local.environment}-byok"
+  target_key_id = aws_kms_key.cg_byok.key_id
+}
+
+resource "aws_iam_role_policy" "cg_backend_kms" {
+  name = "claude-gateway-backend-${local.environment}-kms-byok-policy"
+  role = aws_iam_role.cg_backend_irsa.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "kms:GenerateDataKey",
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:DescribeKey",
+      ]
+      Resource = aws_kms_key.cg_byok.arn
+    }]
+  })
+}
+
 output "claude_gateway_irsa_role_arn" {
   description = "ARN du rôle IRSA claude-gateway (à injecter dans k8s : IRSA_ROLE_ARN_PLACEHOLDER)"
   value       = aws_iam_role.cg_backend_irsa.arn
